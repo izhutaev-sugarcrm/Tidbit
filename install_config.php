@@ -54,7 +54,7 @@ $modules = array(
     'Tasks' => 4000,
     'Notes' => 4000,
 	'Documents'=>1000,
-	
+	'ACLRoles' => 50
 );
 
 $aliases = array(

@@ -126,8 +126,11 @@ Options
 
     -s             	Specify the number of teams per team set and per record.
     
+    --tba               Setup Team-based ACL. Parameter could be boolean or number.
+                        "--tba=true" is turn it on. "--tba=5" or "--tba 5" set 5 users per role.
+
     --allmodules	Automatically detect all installed modules and generate data for them.
-    
+
     --allrelationships	Automatically detect all relationships and generate data for them.
 
     --iterator count    This will only insert in the DB the last (count) records specified, meanwhile the
@@ -145,7 +148,7 @@ EOS;
 // TODO: changed command line arg handling to detect --allmodules & --allrelationships
 if(function_exists('getopt'))
 {
-	$opts = getopt('l:u:s:x:ecothvd', array('allmodules', 'allrelationships', 'as_populate', 'as_number:', 'as_buffer:', 'as_last_rec:','iterator:', 'insert_batch_size:'));
+	$opts = getopt('l:u:s:x:ecothvd', array('tba:', 'allmodules', 'allrelationships', 'as_populate', 'as_number:', 'as_buffer:', 'as_last_rec:','iterator:', 'insert_batch_size:'));
 	if($opts === false)
 	{
 		die($usageStr);
@@ -214,6 +217,9 @@ else
 		{
 			$nextData = 's';
 		}
+		elseif ($arg === '--tba') {
+			$nextData = 'tba';
+		}
 		elseif($arg == '--allmodules') {
 			$opts['allmodules'] = true;
 		}
@@ -235,7 +241,6 @@ else
 	}
 }
 
-//var_dump($opts);
 $allrelationships = false;
 if(isset($opts['allmodules'])) {
 	echo "automatically detecting installed modules\n"; 
@@ -270,6 +275,9 @@ if(isset($opts['u']))
 	}
 	$modules['Teams'] = $opts['u']*($modules['Teams']/$modules['Users']);
 	$modules['Users'] = $opts['u'];
+	if (isset($opts['tba'])) {
+		$modules['ACLRoles'] = $opts['u'] / 2;
+	}
 }
 
 if(isset($opts['x']))
@@ -305,7 +313,6 @@ $_SESSION['baseTime'] = time();
 $_SESSION['totalRecords'] = 0;
 
 
-
 foreach($modules as $records){
 	$_SESSION['totalRecords'] += $records;
 }
@@ -329,6 +336,10 @@ if(isset($opts['d']))
 {
 	$_SESSION['debug'] = true;
 }
+if(isset($opts['tba']))
+{
+    $_SESSION['tba'] = $opts['tba'];
+}
 if(isset($opts['as_populate'])) {
     $_SESSION['as_populate'] = true;
     if(isset($opts['as_number'])) {
@@ -351,6 +362,7 @@ if(isset($_SESSION['debug']))
 {
 	$GLOBALS['queryFP'] = fopen('Tidbit/executedQueries.txt', 'w');
 }
+
 
 // Batch size by default is 19 (20th in for loop)
 $insertBatchSize = 19;
@@ -387,6 +399,7 @@ echo "With Transaction Batch Mode ".(isset($_SESSION['txBatchSize'])?$_SESSION['
 echo "With Obliterate Mode ".(isset($_SESSION['obliterate'])?"ON":"OFF")."\n";
 echo "With Existing Users Mode ".(isset($_SESSION['UseExistUsers'])?"ON - {$modules['Users']} users":"OFF")."\n";
 echo "With ActivityStream Populating Mode " . (isset($_SESSION['as_populate']) ? "ON" : "OFF") . "\n";
+echo "With Team-based ACL Mode ".(isset($_SESSION['tba'])?"ON":"OFF")."\n";
 echo "With Multi-insert body size (core bean modules) " . ($insertBatchSize + 1) . " records \n";
 echo "\n";
 
@@ -497,6 +510,9 @@ foreach($module_keys as $module)
 			$GLOBALS['db']->query("DELETE FROM team_sets");
 			$GLOBALS['db']->query("DELETE FROM team_sets_teams");
 			$GLOBALS['db']->query("DELETE FROM team_sets_modules");
+		} else if ($module == 'ACLRoles') {
+			$GLOBALS['db']->query("DELETE FROM acl_roles_users WHERE user_id != '1' AND role_id LIKE 'seed-%'");
+			$GLOBALS['db']->query("DELETE FROM acl_roles WHERE id LIKE 'seed-%'");
 		}else {
 			$GLOBALS['db']->query("DELETE FROM $bean->table_name WHERE 1=1 AND id LIKE 'seed-%'");
 		}
@@ -646,6 +662,49 @@ foreach($module_keys as $module)
 		}
 		DataTool::$team_sets_array = $team_sets;
 	}
+
+	if ($module == 'ACLRoles' && !empty($_SESSION['tba'])) {
+		$tbaAccess = 72; //This value related to ACL_ALLOW_SELECTED_TEAMS(Owner & Selected Teams) constant
+		$roleActions = array(
+			'Accounts' => array('delete' => $tbaAccess, 'export' => $tbaAccess),
+			'Contacts' => array('delete' => $tbaAccess, 'export' => $tbaAccess),
+			'Leads' => array('delete' => $tbaAccess, 'export' => $tbaAccess),
+			'Quotes' => array('delete' => $tbaAccess, 'export' => $tbaAccess),
+			'Opportunities' => array('delete' => $tbaAccess, 'export' => $tbaAccess),
+			'Bugs' => array('delete' => $tbaAccess, 'export' => $tbaAccess),
+			'Cases' => array('delete' => $tbaAccess, 'export' => $tbaAccess),
+			'KBContents' => array('delete' => $tbaAccess, 'export' => $tbaAccess)
+		);
+
+		$ACLRolesData = array();
+		$result = $GLOBALS['db']->query("SELECT id FROM acl_roles WHERE id LIKE 'seed-ACLRoles%'");
+		while($row = $GLOBALS['db']->fetchByAssoc($result)){
+			$ACLRolesData[$row['id']] = $row['id'];
+			$ACLRole = BeanFactory::retrieveBean('ACLRoles', $row['id']);
+			foreach ($roleActions as $category => $actions) {
+				foreach ($actions as $name => $access_override) {
+					$queryACL = "SELECT id FROM acl_actions where category='$category' and name='$name'";
+					$resultACL = $GLOBALS['db']->query($queryACL);
+					$actionId = $GLOBALS['db']->fetchByAssoc($resultACL);
+					if (!empty($actionId['id'])) {
+						$ACLRole->setAction($ACLRole->id, $actionId['id'], $access_override);
+					}
+				}
+			}
+		}
+
+		$i = 1;
+		$usersPerRole = is_numeric($_SESSION['tba']) ? $_SESSION['tba'] : 2; //If not specify, set 2 users per role by default.
+		$userRoleId = array_shift($ACLRolesData);
+		$result = $GLOBALS['db']->query("SELECT id from users where id LIKE 'seed-Users%'");
+		while ($row = $GLOBALS['db']->fetchByAssoc($result)) {
+			$GLOBALS['db']->query("INSERT into acl_roles_users(id,user_id,role_id) values('" . create_guid() . "','" . $row['id'] . "','" . $userRoleId . "')");
+			if ($i % $usersPerRole == 0) {
+				$userRoleId = array_shift($ACLRolesData);
+			}
+			$i += 1;
+		}
+    }
 
 	echo "DONE\n";
 }

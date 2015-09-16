@@ -133,7 +133,11 @@ class DataTool{
             if(isset($this->installData['assigned_user_id'])){
                  $this->installData['team_set_id'] = add_team_to_team_set($this->installData['team_set_id'], $this->installData['assigned_user_id']);
             }
-            $this->installData['team_set_id'] = "'".$this->installData['team_set_id']."'";  
+            $this->installData['team_set_id'] = "'".$this->installData['team_set_id']."'";
+            //check if TbACLs is enabled
+            if (!empty($_SESSION['tba'])) {
+                $this->installData['team_set_selected_id'] = $this->installData['team_set_id'];
+            }
         } 
     }
     
