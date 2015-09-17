@@ -148,7 +148,7 @@ EOS;
 // TODO: changed command line arg handling to detect --allmodules & --allrelationships
 if(function_exists('getopt'))
 {
-	$opts = getopt('l:u:s:x:ecothvd', array('tba:', 'allmodules', 'allrelationships', 'as_populate', 'as_number:', 'as_buffer:', 'as_last_rec:','iterator:', 'insert_batch_size:'));
+	$opts = getopt('l:u:s:x:ecothvd', array('tba', 'allmodules', 'allrelationships', 'as_populate', 'as_number:', 'as_buffer:', 'as_last_rec:','iterator:', 'insert_batch_size:'));
 	if($opts === false)
 	{
 		die($usageStr);
@@ -218,7 +218,7 @@ else
 			$nextData = 's';
 		}
 		elseif ($arg === '--tba') {
-			$nextData = 'tba';
+			$opts['tba'] = true;
 		}
 		elseif($arg == '--allmodules') {
 			$opts['allmodules'] = true;
@@ -336,10 +336,18 @@ if(isset($opts['d']))
 {
 	$_SESSION['debug'] = true;
 }
-if(isset($opts['tba']))
-{
-    $_SESSION['tba'] = $opts['tba'];
+
+if (isset($opts['tba'])) {
+    if (version_compare($GLOBALS['sugar_config']['sugar_version'], '7.8.0', '>=')) {
+        $_SESSION['tba'] = true;
+    } else {
+        echo "!!! WARNING !!!\n";
+        echo "Team Based ACL Settings could not be enabled for SugarCRM version less than 7.8 \n";
+        echo "!!! WARNING !!!\n";
+        echo "\n";
+    }
 }
+
 if(isset($opts['as_populate'])) {
     $_SESSION['as_populate'] = true;
     if(isset($opts['as_number'])) {
@@ -489,6 +497,10 @@ foreach($module_keys as $module)
 			$GLOBALS['db']->query("DELETE FROM team_sets");
 			$GLOBALS['db']->query("DELETE FROM team_sets_teams");
 			$GLOBALS['db']->query("DELETE FROM team_sets_modules");
+		} else if ($module == 'ACLRoles') {
+			$GLOBALS['db']->query("DELETE FROM acl_roles_users WHERE user_id != '1'");
+			$GLOBALS['db']->query("DELETE FROM acl_roles_actions WHERE role_id LIKE 'seed-%'");
+			$GLOBALS['db']->query("DELETE FROM acl_roles WHERE 1=1");
 		} else {
 			$GLOBALS['db']->query("DELETE FROM $bean->table_name WHERE 1 = 1");
 		}
@@ -512,6 +524,7 @@ foreach($module_keys as $module)
 			$GLOBALS['db']->query("DELETE FROM team_sets_modules");
 		} else if ($module == 'ACLRoles') {
 			$GLOBALS['db']->query("DELETE FROM acl_roles_users WHERE user_id != '1' AND role_id LIKE 'seed-%'");
+			$GLOBALS['db']->query("DELETE FROM acl_roles_actions WHERE role_id LIKE 'seed-%'");
 			$GLOBALS['db']->query("DELETE FROM acl_roles WHERE id LIKE 'seed-%'");
 		}else {
 			$GLOBALS['db']->query("DELETE FROM $bean->table_name WHERE 1=1 AND id LIKE 'seed-%'");
@@ -663,47 +676,35 @@ foreach($module_keys as $module)
 		DataTool::$team_sets_array = $team_sets;
 	}
 
-	if ($module == 'ACLRoles' && !empty($_SESSION['tba'])) {
-		$tbaAccess = 72; //This value related to ACL_ALLOW_SELECTED_TEAMS(Owner & Selected Teams) constant
-		$roleActions = array(
-			'Accounts' => array('delete' => $tbaAccess, 'export' => $tbaAccess),
-			'Contacts' => array('delete' => $tbaAccess, 'export' => $tbaAccess),
-			'Leads' => array('delete' => $tbaAccess, 'export' => $tbaAccess),
-			'Quotes' => array('delete' => $tbaAccess, 'export' => $tbaAccess),
-			'Opportunities' => array('delete' => $tbaAccess, 'export' => $tbaAccess),
-			'Bugs' => array('delete' => $tbaAccess, 'export' => $tbaAccess),
-			'Cases' => array('delete' => $tbaAccess, 'export' => $tbaAccess),
-			'KBContents' => array('delete' => $tbaAccess, 'export' => $tbaAccess)
-		);
+    // Apply TBA Rules for some modules
+    // $roleActions are defined in install_config.php
+    if ($module == 'ACLRoles' && !empty($_SESSION['tba'])) {
 
-		$ACLRolesData = array();
-		$result = $GLOBALS['db']->query("SELECT id FROM acl_roles WHERE id LIKE 'seed-ACLRoles%'");
-		while($row = $GLOBALS['db']->fetchByAssoc($result)){
-			$ACLRolesData[$row['id']] = $row['id'];
-			$ACLRole = BeanFactory::retrieveBean('ACLRoles', $row['id']);
-			foreach ($roleActions as $category => $actions) {
-				foreach ($actions as $name => $access_override) {
-					$queryACL = "SELECT id FROM acl_actions where category='$category' and name='$name'";
-					$resultACL = $GLOBALS['db']->query($queryACL);
-					$actionId = $GLOBALS['db']->fetchByAssoc($resultACL);
-					if (!empty($actionId['id'])) {
-						$ACLRole->setAction($ACLRole->id, $actionId['id'], $access_override);
-					}
-				}
-			}
-		}
+        // Cache ACLAction IDs
+        $queryACL = "SELECT id, category, name FROM acl_actions where category in ('"
+                    . implode("','", array_keys($roleActions)) . "')";
+        $resultACL = $GLOBALS['db']->query($queryACL);
 
-		$i = 1;
-		$usersPerRole = is_numeric($_SESSION['tba']) ? $_SESSION['tba'] : 2; //If not specify, set 2 users per role by default.
-		$userRoleId = array_shift($ACLRolesData);
-		$result = $GLOBALS['db']->query("SELECT id from users where id LIKE 'seed-Users%'");
-		while ($row = $GLOBALS['db']->fetchByAssoc($result)) {
-			$GLOBALS['db']->query("INSERT into acl_roles_users(id,user_id,role_id) values('" . create_guid() . "','" . $row['id'] . "','" . $userRoleId . "')");
-			if ($i % $usersPerRole == 0) {
-				$userRoleId = array_shift($ACLRolesData);
-			}
-			$i += 1;
-		}
+        $actionsIds = array();
+
+        // $actionsIds will contain keys like %category%_%name%
+        while ($row = $GLOBALS['db']->fetchByAssoc($resultACL)) {
+            $actionsIds[$row['category'] . '_' . $row['name']] = $row['id'];
+        }
+
+        $result = $GLOBALS['db']->query("SELECT id FROM acl_roles WHERE id LIKE 'seed-ACLRoles%'");
+        $roleBean = BeanFactory::getBean('ACLRoles');
+
+        while($row = $GLOBALS['db']->fetchByAssoc($result)){
+            foreach ($roleActions as $category => $actions) {
+                foreach ($actions as $name => $access_override) {
+                    $actionId = isset($actionsIds[$category . '_' . $name]) ? $actionsIds[$category . '_' . $name] : null;
+                    if (!empty($actionId)) {
+                        $roleBean->setAction($row['id'], $actionId, $access_override);
+                    }
+                }
+            }
+        }
     }
 
 	echo "DONE\n";

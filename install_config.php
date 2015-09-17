@@ -37,6 +37,7 @@
 
 $modules = array(
 	'EmailAddresses'=>12000,
+    'ACLRoles' => 10,
     'Users' => 100,
     'Teams' => 20,
     'Accounts' => 1000,
@@ -53,8 +54,7 @@ $modules = array(
     'Meetings' => 8000,
     'Tasks' => 4000,
     'Notes' => 4000,
-	'Documents'=>1000,
-	'ACLRoles' => 50
+    'Documents'=>1000,
 );
 
 $aliases = array(
@@ -69,6 +69,15 @@ $activityModulesBlackList = array(
     'ProductBundles',
     'EmailAddresses',
     'Documents'
+);
+
+$tidbit_relationships['ACLRoles'] = array(
+    'Users' => array(
+        'self' => 'role_id',
+        'you' => 'user_id',
+        'table' => 'acl_roles_users',
+        'ratio' => 10
+    ),
 );
 
 $tidbit_relationships['Users'] = array(
@@ -219,3 +228,15 @@ $tidbit_relationships['Leads']=array(
 //	),
 //	
 //);
+
+$tbaAccess = 72; // This value related to ACL_ALLOW_SELECTED_TEAMS(Owner & Selected Teams) constant
+$roleActions = array(
+    'Accounts' => array('delete' => $tbaAccess, 'export' => $tbaAccess),
+    'Contacts' => array('delete' => $tbaAccess, 'export' => $tbaAccess),
+    'Leads' => array('delete' => $tbaAccess, 'export' => $tbaAccess),
+    'Quotes' => array('delete' => $tbaAccess, 'export' => $tbaAccess),
+    'Opportunities' => array('delete' => $tbaAccess, 'export' => $tbaAccess),
+    'Bugs' => array('delete' => $tbaAccess, 'export' => $tbaAccess),
+    'Cases' => array('delete' => $tbaAccess, 'export' => $tbaAccess),
+    'KBContents' => array('delete' => $tbaAccess, 'export' => $tbaAccess)
+);
