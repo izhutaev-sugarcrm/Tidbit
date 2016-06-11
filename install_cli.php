@@ -126,14 +126,7 @@ foreach ($module_keys as $module) {
         $generatorName = '\Sugarcrm\Tidbit\Generator\\' . $module;
         /** @var \Sugarcrm\Tidbit\Generator\Common $generator */
         $generator = new $generatorName($GLOBALS['db'], $storageAdapter, $insertBatchSize, $modules[$module]);
-        if (!empty($GLOBALS['as_populate'])) {
-            $generator->setActivityStreamGenerator($activityGenerator);
-            $activityBean = $generator->getActivityBean();
-            if ($activityBean && $activityGenerator->willGenerateActivity($activityBean)) {
-                echo "\n\tWill create " . $activityGenerator->calculateActivitiesToCreate($modules[$module])
-                    . " activity records \n";
-            }
-        }
+
         if (isset($GLOBALS['obliterate'])) {
             echo "\tObliterating all existing data ... ";
             $generator->obliterateDB();
@@ -144,7 +137,16 @@ foreach ($module_keys as $module) {
             echo "DONE";
         }
 
-        echo "\n\tHitting DB...";
+        if (!empty($GLOBALS['as_populate'])) {
+            $generator->setActivityStreamGenerator($activityGenerator);
+            $activityBean = $generator->getActivityBean();
+            if ($activityBean && $activityGenerator->willGenerateActivity($activityBean)) {
+                echo "\n\tWill create " . $activityGenerator->calculateActivitiesToCreate($modules[$module])
+                    . " activity records";
+            }
+        }
+
+        echo "\n\tHitting DB... ";
         $generator->generate();
         $total = $generator->getInsertCounter();
         echo " DONE";
@@ -221,9 +223,9 @@ foreach ($module_keys as $module) {
     $dTool->module = $module;
 
     if (!empty($GLOBALS['as_populate']) && $activityGenerator->willGenerateActivity($bean)) {
-        echo "\n\tWill create " . $activityGenerator->calculateActivitiesToCreate($total) . " activity records \n";
+        echo "\n\tWill create " . $activityGenerator->calculateActivitiesToCreate($total) . " activity records";
     }
-    echo "\n\tHitting DB...";
+    echo "\n\tHitting DB... ";
 
     $beanInsertBuffer = new \Sugarcrm\Tidbit\InsertBuffer($dTool->table_name, $storageAdapter, $insertBatchSize);
 
