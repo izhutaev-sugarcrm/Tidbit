@@ -37,6 +37,7 @@
 
 namespace Sugarcrm\Tidbit\Generator;
 
+use Pimple\Container;
 use Sugarcrm\Tidbit\Core\Intervals;
 use Sugarcrm\Tidbit\DataTool;
 use Sugarcrm\Tidbit\StorageAdapter\Storage\Common as StorageCommon;
@@ -86,12 +87,11 @@ class KBContents extends Common
     /**
      * Constructor.
      *
-     * @param \DBManager $db
-     * @param StorageCommon $storageAdapter
+     * @param Container $c
      * @param int $insertBatchSize
      * @param int $recordsNumber
      */
-    public function __construct(\DBManager $db, StorageCommon $storageAdapter, $insertBatchSize, $recordsNumber)
+    public function __construct(Container $c, $insertBatchSize, $recordsNumber)
     {
         global $kbNumberOfArticlesWithNotes;
         if ($kbNumberOfArticlesWithNotes) {
@@ -105,7 +105,7 @@ class KBContents extends Common
 
         $this->activityBean = \BeanFactory::getBean('KBContents');
         
-        parent::__construct($db, $storageAdapter, $insertBatchSize, $recordsNumber);
+        parent::__construct($c, $insertBatchSize, $recordsNumber);
     }
 
     /**

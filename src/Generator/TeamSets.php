@@ -37,6 +37,7 @@
 
 namespace Sugarcrm\Tidbit\Generator;
 
+use Pimple\Container;
 use Sugarcrm\Tidbit\DataTool;
 use Sugarcrm\Tidbit\InsertBuffer;
 use Sugarcrm\Tidbit\StorageAdapter\Factory;
@@ -95,24 +96,22 @@ class TeamSets extends \TeamSet
     /**
      * Constructor.
      *
-     * @param \DBManager $db
-     * @param CommonStorage $storageAdapter
+     * @param Container $c
      * @param int $insertBatchSize
      * @param array $teamIds
      * @param int $maxTeamsPerSet
      */
     public function __construct(
-        \DBManager $db,
-        CommonStorage $storageAdapter,
+        Container $c,
         $insertBatchSize,
         $teamIds,
         $maxTeamsPerSet
     ) {
-        $this->db = $db;
-        $this->insertBufferTeamSets = new InsertBuffer('team_sets', $storageAdapter, $insertBatchSize);
-        $this->insertBufferTeamSetsTeams = new InsertBuffer('team_sets_teams', $storageAdapter, $insertBatchSize);
+        $this->db = $c['db'];
+        $this->insertBufferTeamSets = new InsertBuffer('team_sets', $c['storage'], $insertBatchSize);
+        $this->insertBufferTeamSetsTeams = new InsertBuffer('team_sets_teams', $c['storage'], $insertBatchSize);
         $this->teamIds = $teamIds;
-        $this->storageType = $storageAdapter::STORE_TYPE;
+        $this->storageType = $c['storage']::STORE_TYPE;
         $this->maxTeamsPerSet = $maxTeamsPerSet;
         $this->loadTeamIds();
         $this->loadTeamMd5();

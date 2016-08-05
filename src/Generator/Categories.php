@@ -37,7 +37,7 @@
 
 namespace Sugarcrm\Tidbit\Generator;
 
-use Sugarcrm\Tidbit\StorageAdapter\Storage\Common as StorageCommon;
+use Pimple\Container;
 
 class Categories extends Common
 {
@@ -58,18 +58,17 @@ class Categories extends Common
     /**
      * Constructor.
      *
-     * @param \DBManager $db
-     * @param StorageCommon $storageAdapter
+     * @param Container $c
      * @param int $insertBatchSize
      * @param int $recordsNumber
      */
-    public function __construct(\DBManager $db, StorageCommon $storageAdapter, $insertBatchSize, $recordsNumber)
+    public function __construct(Container $c, $insertBatchSize, $recordsNumber)
     {
         global $kbCategoriesNestingLevel;
         if ($kbCategoriesNestingLevel) {
             $this->nestingLevel = $kbCategoriesNestingLevel;
         }
-        parent::__construct($db, $storageAdapter, $insertBatchSize, $recordsNumber);
+        parent::__construct($c, $insertBatchSize, $recordsNumber);
     }
 
     /**

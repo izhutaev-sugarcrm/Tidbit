@@ -37,12 +37,11 @@
 
 namespace Sugarcrm\Tidbit\Generator;
 
+use Pimple\Container;
 use Sugarcrm\Tidbit\Core\Config;
 use Sugarcrm\Tidbit\Core\Factory as CoreFactory;
 use Sugarcrm\Tidbit\DataTool;
 use Sugarcrm\Tidbit\InsertBuffer;
-use Sugarcrm\Tidbit\StorageAdapter\Factory;
-use \Sugarcrm\Tidbit\StorageAdapter\Storage\Common as StorageCommon;
 
 abstract class Common
 {
@@ -112,16 +111,15 @@ abstract class Common
     /**
      * Constructor.
      *
-     * @param \DBManager $db
-     * @param StorageCommon $storageAdapter
+     * @param Container $c
      * @param int $insertBatchSize
      * @param int $recordsNumber
      */
-    public function __construct(\DBManager $db, StorageCommon $storageAdapter, $insertBatchSize, $recordsNumber = 0)
+    public function __construct(Container $c, $insertBatchSize, $recordsNumber = 0)
     {
-        $this->db = $db;
-        $this->storageAdapter = $storageAdapter;
-        $this->storageType = $storageAdapter::STORE_TYPE;
+        $this->db = $c['db'];
+        $this->storageAdapter = $c['storage'];
+        $this->storageType = $c['storage']::STORE_TYPE;
         $this->insertBatchSize = $insertBatchSize;
         $this->recordsNumber = $recordsNumber;
     }

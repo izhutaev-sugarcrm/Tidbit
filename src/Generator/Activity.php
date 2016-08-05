@@ -37,10 +37,10 @@
 
 namespace Sugarcrm\Tidbit\Generator;
 
+use Pimple\Container;
 use Sugarcrm\Tidbit\DataTool;
 use Sugarcrm\Tidbit\Generator\Activity\Entity;
 use Sugarcrm\Tidbit\InsertBuffer;
-use Sugarcrm\Tidbit\StorageAdapter\Storage\Common as StorageCommon;
 
 class Activity
 {
@@ -94,26 +94,24 @@ class Activity
     /**
      * Constructor
      *
-     * @param \DBManager $db
-     * @param StorageCommon $adapter
+     * @param Container $c
      * @param int $insertBatchSize
      * @param int $activitiesPerModule
      * @param int $lastNRecords
      */
     public function __construct(
-        \DBManager $db,
-        StorageCommon $adapter,
+        Container $c,
         $insertBatchSize,
         $activitiesPerModule,
         $lastNRecords
     ) {
-        $this->db = $db;
+        $this->db = $c['db'];
         $this->activitiesPerModuleRecord = $activitiesPerModule;
         $this->lastNRecords = $lastNRecords;
-        $this->insertBufferActivities = new InsertBuffer(self::ACTIVITY_TABLE, $adapter, $insertBatchSize);
+        $this->insertBufferActivities = new InsertBuffer(self::ACTIVITY_TABLE, $c['storage'], $insertBatchSize);
         $this->insertBufferActivitiesRelationships = new InsertBuffer(
             self::RELATIONSHIP_TABLE,
-            $adapter,
+            $c['storage'],
             $insertBatchSize
         );
     }

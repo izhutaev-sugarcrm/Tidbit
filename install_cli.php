@@ -84,17 +84,26 @@ if ($storageType == 'csv') {
     $storage = TIDBIT_DIR . '/' . $tidbitCsvDir;
     clearCsvDir($storage);
 } else {
-    $storage = $GLOBALS['db'];
+    $storage = $container['db'];
 }
+
+$container['storage.type'] = $storageType;
+$container['storage.instance'] = $storage;
+$container['storage.log_query_path'] = $logQueriesPath;
 
 $obliterated = array();
 $relationStorageBuffers = array();
 
-$storageAdapter = \Sugarcrm\Tidbit\StorageAdapter\Factory::getAdapterInstance($storageType, $storage, $logQueriesPath);
-$prefsGenerator = new \Sugarcrm\Tidbit\Generator\UserPreferences($GLOBALS['db'], $storageAdapter);
+$container['storage'] = function($c) {
+    $storageType = $c['storage.type'];
+    $storage = $c['storage.instance'];
+    $logQueriesPath = $c['storage.log_query_path'];
+    return \Sugarcrm\Tidbit\StorageAdapter\Factory::getAdapterInstance($storageType, $storage, $logQueriesPath);
+};
+
+$prefsGenerator = new \Sugarcrm\Tidbit\Generator\UserPreferences($container);
 $activityGenerator = new \Sugarcrm\Tidbit\Generator\Activity(
-    $GLOBALS['db'],
-    $storageAdapter,
+    $container,
     $activityStreamOptions['insertion_buffer_size'],
     $activityStreamOptions['activities_per_module_record'],
     $activityStreamOptions['last_n_records']
@@ -121,10 +130,10 @@ foreach ($module_keys as $module) {
 
     if ((($module == 'Users') || ($module == 'Teams')) && isset($GLOBALS['UseExistUsers'])) {
         if ($module == 'Teams') {
-            \Sugarcrm\Tidbit\Generator\TeamSets::loadExistingTeamSetsIntoDataTool($GLOBALS['db']);
+            \Sugarcrm\Tidbit\Generator\TeamSets::loadExistingTeamSetsIntoDataTool($container['db']);
         }
         if ($module == 'Users') {
-            $existingUserIds = loadUserIds($GLOBALS['db']);
+            $existingUserIds = loadUserIds($container['db']);
             $activityGenerator->setUserIds($existingUserIds);
         }
         echo "Skipping $module\n";
@@ -137,7 +146,7 @@ foreach ($module_keys as $module) {
     if (in_array($module, $moduleUsingGenerators)) {
         $generatorName = '\Sugarcrm\Tidbit\Generator\\' . $module;
         /** @var \Sugarcrm\Tidbit\Generator\Common $generator */
-        $generator = new $generatorName($GLOBALS['db'], $storageAdapter, $insertBatchSize, $modules[$module]);
+        $generator = new $generatorName($container, $insertBatchSize, $modules[$module]);
 
         if (isset($GLOBALS['obliterate'])) {
             echo "\tObliterating all existing data ... ";
@@ -180,24 +189,25 @@ foreach ($module_keys as $module) {
 
     // If the module has custom fields, write to the _cstm table
     $useCustomTable = $bean->hasCustomFields();
+    $db = $container['db'];
 
     if (isset($GLOBALS['obliterate'])) {
         echo "\tObliterating all existing data ... ";
         /* Make sure not to delete the admin! */
         if ($module == 'Users') {
-            $GLOBALS['db']->query("DELETE FROM $bean->table_name WHERE id != '1'");
+            $db->query("DELETE FROM $bean->table_name WHERE id != '1'");
             $prefsGenerator->obliterate();
         } elseif ($module == 'Teams') {
-            $GLOBALS['db']->query("DELETE FROM teams WHERE id != '1'");
-            $GLOBALS['db']->query("DELETE FROM team_sets");
-            $GLOBALS['db']->query("DELETE FROM team_sets_teams");
-            $GLOBALS['db']->query("DELETE FROM team_sets_modules");
+            $db->query("DELETE FROM teams WHERE id != '1'");
+            $db->query("DELETE FROM team_sets");
+            $db->query("DELETE FROM team_sets_teams");
+            $db->query("DELETE FROM team_sets_modules");
         } else {
-            $GLOBALS['db']->query("DELETE FROM $bean->table_name WHERE 1 = 1");
+            $db->query("DELETE FROM $bean->table_name WHERE 1 = 1");
 
             // if module has custom table obliterate up custom table too
             if ($useCustomTable) {
-                $GLOBALS['db']->query("DELETE FROM " . $bean->get_custom_table_name() . " WHERE 1 = 1");
+                $db->query("DELETE FROM " . $bean->get_custom_table_name() . " WHERE 1 = 1");
             }
         }
         if (!empty($tidbit_relationships[$module])) {
@@ -206,7 +216,7 @@ foreach ($module_keys as $module) {
                     continue;
                 }
                 $obliterated[$rel['table']] = true;
-                $GLOBALS['db']->query("DELETE FROM {$rel['table']} WHERE 1 = 1");
+                $db->query("DELETE FROM {$rel['table']} WHERE 1 = 1");
             }
         }
         echo "DONE";
@@ -215,18 +225,18 @@ foreach ($module_keys as $module) {
         /* Make sure not to delete the admin! */
         if ($module == 'Users') {
             $prefsGenerator->clean();
-            $GLOBALS['db']->query("DELETE FROM $bean->table_name WHERE id != '1' AND id LIKE 'seed-%'");
+            $db->query("DELETE FROM $bean->table_name WHERE id != '1' AND id LIKE 'seed-%'");
         } elseif ($module == 'Teams') {
-            $GLOBALS['db']->query("DELETE FROM teams WHERE id != '1' AND id LIKE 'seed-%'");
-            $GLOBALS['db']->query("DELETE FROM team_sets");
-            $GLOBALS['db']->query("DELETE FROM team_sets_teams");
-            $GLOBALS['db']->query("DELETE FROM team_sets_modules");
+            $db->query("DELETE FROM teams WHERE id != '1' AND id LIKE 'seed-%'");
+            $db->query("DELETE FROM team_sets");
+            $db->query("DELETE FROM team_sets_teams");
+            $db->query("DELETE FROM team_sets_modules");
         } else {
-            $GLOBALS['db']->query("DELETE FROM $bean->table_name WHERE 1=1 AND id LIKE 'seed-%'");
+            $db->query("DELETE FROM $bean->table_name WHERE 1=1 AND id LIKE 'seed-%'");
 
             // if module has custom table clean up custom table too
             if ($useCustomTable) {
-                $GLOBALS['db']->query(
+                $db->query(
                     "DELETE FROM " . $bean->get_custom_table_name()
                     . " WHERE 1=1 AND id_c LIKE 'seed-%'"
                 );
@@ -238,7 +248,7 @@ foreach ($module_keys as $module) {
                     continue;
                 }
                 $obliterated[$rel['table']] = true;
-                $GLOBALS['db']->query("DELETE FROM {$rel['table']} WHERE 1=1 AND id LIKE 'seed-%'");
+                $db->query("DELETE FROM {$rel['table']} WHERE 1=1 AND id LIKE 'seed-%'");
             }
         }
         echo "DONE";
@@ -255,16 +265,16 @@ foreach ($module_keys as $module) {
     }
     echo "\n\tHitting DB... ";
 
-    $beanInsertBuffer = new \Sugarcrm\Tidbit\InsertBuffer($dTool->table_name, $storageAdapter, $insertBatchSize);
-    
+    $beanInsertBuffer = new \Sugarcrm\Tidbit\InsertBuffer($dTool->table_name, $container['storage'], $insertBatchSize);
+
     if ($useCustomTable) {
         $beanInsertBufferCustom = new \Sugarcrm\Tidbit\InsertBuffer(
             $bean->get_custom_table_name(),
-            $storageAdapter,
+            $container['storage'],
             $insertBatchSize
         );
     }
-    
+
     /* We need to insert $total records
      * into the DB.  We are using the module and table-name given by
      * $module and $bean->table_name. */
@@ -294,7 +304,7 @@ foreach ($module_keys as $module) {
                     if (empty($relationStorageBuffers[$table])) {
                         $relationStorageBuffers[$table] = new \Sugarcrm\Tidbit\InsertBuffer(
                             $table,
-                            $storageAdapter,
+                            $container['storage'],
                             $insertBatchSize
                         );
                     }
@@ -340,8 +350,7 @@ foreach ($module_keys as $module) {
 
     if ($module == 'Teams') {
         $teamGenerator = new \Sugarcrm\Tidbit\Generator\TeamSets(
-            $GLOBALS['db'],
-            $storageAdapter,
+            $container,
             $insertBatchSize,
             $generatedIds,
             $maxTeamsPerSet
@@ -352,7 +361,7 @@ foreach ($module_keys as $module) {
     // Apply TBA Rules for some modules
     // $roleActions are defined in configs
     if ($module == 'ACLRoles') {
-        $tbaGenerator = new \Sugarcrm\Tidbit\Generator\TBA($GLOBALS['db'], $storageAdapter, $insertBatchSize);
+        $tbaGenerator = new \Sugarcrm\Tidbit\Generator\TBA($container, $insertBatchSize);
 
         if (isset($GLOBALS['clean'])) {
             $tbaGenerator->clearDB();
@@ -383,7 +392,7 @@ foreach ($module_keys as $module) {
 }
 
 // Update enabled Modules Tabs
-\Sugarcrm\Tidbit\Helper\ModuleTabs::updateEnabledTabs($GLOBALS['db'], $module_keys, $GLOBALS['moduleList']);
+\Sugarcrm\Tidbit\Helper\ModuleTabs::updateEnabledTabs($container['db'], $module_keys, $GLOBALS['moduleList']);
 
 // force immediately destructors work
 unset($relationStorageBuffers);
@@ -410,7 +419,7 @@ if (!empty($GLOBALS['as_populate'])) {
 
 if ($storageType == 'csv') {
     // Save table-dictionaries
-    $converter = new \Sugarcrm\Tidbit\CsvConverter($GLOBALS['db'], $storageAdapter, $insertBatchSize);
+    $converter = new \Sugarcrm\Tidbit\CsvConverter($container, $insertBatchSize);
     $converter->convert('config');
     $converter->convert('acl_actions');
     if (isset($GLOBALS['UseExistUsers'])) {

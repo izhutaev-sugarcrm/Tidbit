@@ -37,6 +37,7 @@
 
 namespace Sugarcrm\Tidbit;
 
+use Pimple\Container;
 use Sugarcrm\Tidbit\StorageAdapter\Storage\Csv;
 
 /**
@@ -64,14 +65,13 @@ class CsvConverter
     /**
      * CsvConverter constructor.
      *
-     * @param \DBManager $db
-     * @param Csv $csvAdapter
+     * @param Container $c
      * @param int $insertBatchSize
      */
-    public function __construct(\DBManager $db, Csv $csvAdapter, $insertBatchSize)
+    public function __construct(Container $c, $insertBatchSize)
     {
-        $this->db = $db;
-        $this->csvAdapter = $csvAdapter;
+        $this->db = $c['db'];
+        $this->csvAdapter = $c['storage'];
         $this->insertBatchSize = $insertBatchSize;
     }
 

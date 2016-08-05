@@ -2,6 +2,7 @@
 
 namespace Sugarcrm\Tidbit\Generator;
 
+use Pimple\Container;
 use Sugarcrm\Tidbit\StorageAdapter\Storage\Common as StorageCommon;
 use Sugarcrm\Tidbit\Core\Factory;
 
@@ -23,12 +24,11 @@ class SugarFavorites extends Common
     /**
      * Constructor.
      *
-     * @param \DBManager $db
-     * @param StorageCommon $storageAdapter
+     * @param Container $c
      * @param int $insertBatchSize
      * @param int $recordsNumber
      */
-    public function __construct(\DBManager $db, StorageCommon $storageAdapter, $insertBatchSize, $recordsNumber)
+    public function __construct(Container $c, $insertBatchSize, $recordsNumber)
     {
         global $sugarFavoritesModules, $module_keys;
 
@@ -38,7 +38,7 @@ class SugarFavorites extends Common
             $this->generatedModules[$module] = $sugarFavoritesModules[$module];
         }
 
-        parent::__construct($db, $storageAdapter, $insertBatchSize, $recordsNumber);
+        parent::__construct($c, $insertBatchSize, $recordsNumber);
     }
 
     /**

@@ -284,7 +284,14 @@ require_once __DIR__ . '/custom/config.php';
 
 $GLOBALS['log'] = new Sugarcrm\Tidbit\FakeLogger();
 $GLOBALS['app_list_strings'] = return_app_list_strings_language('en_us');
-$GLOBALS['db'] = DBManagerFactory::getInstance(); // get default sugar db
+
+$container = new Pimple\Container();
+
+$container['db'] = function() {
+    // get default sugar db
+    return DBManagerFactory::getInstance();
+};
+
 // Do not cache DateTime values, DataTool will do this
 $GLOBALS['timedate']->allow_cache = false;
 

@@ -37,6 +37,8 @@
 
 namespace Sugarcrm\Tidbit\Generator;
 
+use Pimple\Container;
+
 class UserPreferences
 {
     /** @var \DBManager */
@@ -56,13 +58,12 @@ class UserPreferences
     /**
      * UserPreferences constructor.
      *
-     * @param \DBManager $db
-     * @param \Sugarcrm\Tidbit\StorageAdapter\Storage\Common $storageAdapter
+     * @param Container $c
      */
-    public function __construct(\DBManager $db, \Sugarcrm\Tidbit\StorageAdapter\Storage\Common $storageAdapter)
+    public function __construct(Container $c)
     {
-        $this->db = $db;
-        $this->storageAdapter = $storageAdapter;
+        $this->db = $c['db'];
+        $this->storageAdapter = $c['storage'];
     }
 
     /**
