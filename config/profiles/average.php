@@ -28,16 +28,16 @@ $modules = array(
 );
 
 $sugarFavoritesModules = array(
-    'Accounts'      => 5000, // 10% of base accounts
-    'Contacts'      => 20000,
-    'Leads'         => 20000,
-    'Opportunities' => 10000,
-    'Calls'         => 60000, // 5% of base calls
-    'Meetings'      => 20000, // 5% of base meetings
-    'Cases'         => 10000,
-    'Bugs'          => 6000,
-    'Tasks'         => 10000,
-    'Notes'         => 10000,
+    'Accounts'      => 25000, // 50% of base accounts
+    'Contacts'      => 100000,
+    'Leads'         => 100000,
+    'Opportunities' => 50000,
+    'Calls'         => 300000, // 25% of base calls
+    'Meetings'      => 100000, // 25% of base meetings
+    'Cases'         => 50000,
+    'Bugs'          => 37500,
+    'Tasks'         => 50000,
+    'Notes'         => 50000,
 );
 
 $profile_opts = array(

@@ -409,14 +409,14 @@ $kbLanguage = array(
 );
 
 $sugarFavoritesModules = array(
-    'Accounts'      => 100, // 10% of base accounts
-    'Contacts'      => 400,
-    'Leads'         => 400,
-    'Opportunities' => 200,
-    'Calls'         => 1200, // 5% of base calls
-    'Meetings'      => 400, // 5% of base meetings
-    'Cases'         => 200,
-    'Bugs'          => 150,
-    'Tasks'         => 200,
-    'Notes'         => 200,
+    'Accounts'      => 500, // 10% of base accounts
+    'Contacts'      => 2000,
+    'Leads'         => 2000,
+    'Opportunities' => 1000,
+    'Calls'         => 6000, // 5% of base calls
+    'Meetings'      => 2000, // 5% of base meetings
+    'Cases'         => 1000,
+    'Bugs'          => 600,
+    'Tasks'         => 1000,
+    'Notes'         => 1000,
 );
